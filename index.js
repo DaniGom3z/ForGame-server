@@ -16,21 +16,35 @@ app.use(cors());
 const lastMessages = [];
 
 io.on("connection", (socket) => {
-  console.log("Cliente conectado");
-  io.emit("recentMessages", lastMessages);
+  console.log('Conexión establecida con el servidor');
 
-  socket.on("message", (body) => {
+  // Manejar unirse a una sala
+  socket.on("joinRoom", (room) => {
+    socket.join(room);
+    console.log(`Cliente ${socket.id} se unió a la sala: ${room}`);
+    io.to(room).emit("recentMessages", lastMessages.filter(msg => msg.room === room));
+  });
+
+  // Manejar mensajes en una sala específica
+  socket.on("message", (data) => {
     const newMessage = {
-      body,
+      body: data.body,
       from: socket.id.slice(6),
+      room: data.room,
     };
 
     lastMessages.push(newMessage);
     if (lastMessages.length > 10) {
-      lastMessages.shift(); 
+      lastMessages.shift();
     }
 
-    io.emit("message", newMessage);
+    io.to(data.room).emit("message", newMessage);
+  });
+
+  // Manejar salir de una sala
+  socket.on("leaveRoom", (room) => {
+    socket.leave(room);
+    console.log(`Cliente ${socket.id} salió de la sala: ${room}`);
   });
 });
 
