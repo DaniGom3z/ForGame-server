@@ -1,8 +1,9 @@
 require("dotenv").config();
 const express = require("express");
-const cors = require("cors")
+const cors = require("cors");
 const administradorRouter = require("./src/routes/adminRoute.js");
 const userRouter = require("./src/routes/userRouter.js");
+const conectados = require("./src/routes/longpollingRoute.js");
 const logger = require("morgan");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -12,54 +13,34 @@ const server = http.createServer(app);
 const io = new Server(server);
 app.use(cors());
 
+const lastMessages = [];
+
 io.on("connection", (socket) => {
   console.log("Cliente conectado");
+  io.emit("recentMessages", lastMessages);
 
   socket.on("message", (body) => {
-    socket.broadcast.emit('message',{
+    const newMessage = {
       body,
-      from: socket.id.slice(6)
-    })
+      from: socket.id.slice(6),
+    };
+
+    lastMessages.push(newMessage);
+    if (lastMessages.length > 10) {
+      lastMessages.shift(); 
+    }
+
+    io.emit("message", newMessage);
   });
-
-
 });
 
 app.use(express.json());
 app.use(administradorRouter);
 app.use(userRouter);
+app.use(conectados);
 app.use(logger("dev"));
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Servidor escuchando en ${PORT}`);
 });
-
-let usuariosConectados = [];
-
-function notificarUsuariosConectados() {
-  for (const res of usuariosConectados) {
-    res.json({
-      totalUsuarios: usuariosConectados.length,
-    });
-  }
-}
-
-app.post("/conectados", (req, res) => {
-  notificarUsuariosConectados();
-  res.status(200).json({ success: true });
-});
-
-app.get("/conexion", (req, res) => {
-  usuariosConectados.push(res);
-
-  req.on("close", () => {
-    const index = usuariosConectados.indexOf(res);
-    if (index !== -1) {
-      usuariosConectados.splice(index, 1);
-    }
-  });
-});
-
-// Short-polling para popular
-// long-polling para conectados

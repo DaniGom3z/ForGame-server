@@ -7,7 +7,7 @@ const administradorRoute = express.Router();
 
 administradorRoute.post("/registro", admin.crearUsuario);
 administradorRoute.post("/iniciar", admin.iniciarSesion);
-administradorRoute.post("/popular/game", protegerRutas, videojuego.editarPopular);
+administradorRoute.post("/popular", protegerRutas, videojuego.editarPopular);
 administradorRoute.post("/cerrarSesion", protegerRutas, admin.cerrarSesion);
 
 module.exports = administradorRoute;
